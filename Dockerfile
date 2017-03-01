@@ -1,14 +1,19 @@
-FROM appcelerator/alpine:20160928
-MAINTAINER Nicolas Degory <ndegory@axway.com>
+FROM alpine:3.4
 
-#ENV INFLUXDB_VERSION 1.0.1
-
+#add python and envtpl (used for relay templating) to the alpine container
+RUN apk update && apk upgrade && \
+    apk --no-cache add python ca-certificates curl wget bash && \
+    apk --virtual envtpl-deps add --update py-pip python-dev && \
+    curl https://bootstrap.pypa.io/ez_setup.py | python && \
+    pip install envtpl && \
+    apk del envtpl-deps && rm -rf /var/cache/apk/* /setuptools-*.zip
+    
+#add the build depenedencies and build the influxdb-relay image    
 RUN apk update && apk upgrade && \
     apk --virtual build-deps add go>1.6 curl git gcc musl-dev make && \
     export GOPATH=/go && \
     go get -v github.com/influxdata/influxdb-relay && \
     cd $GOPATH/src/github.com/influxdata/influxdb-relay && \
-    #git checkout -q --detach "v${INFLUXDB_VERSION}" && \
     python ./build.py && \
     chmod +x ./build/influx* && \
     ls -l ./build/* && \
@@ -17,12 +22,9 @@ RUN apk update && apk upgrade && \
 
 EXPOSE 9096
 
-COPY relay.toml /etc/relay.toml.tpl
-COPY run.sh /bin/
+#copy the config template and the start-up script to the container
+WORKDIR /opt/ibm/app
+COPY relay.toml.tpl .
+COPY run.sh .
 
-ENTRYPOINT ["/bin/sh", "-c"]
-CMD ["/bin/run.sh"]
-
-#HEALTHCHECK --interval=5s --retries=24 --timeout=1s CMD curl -sI localhost:8086/ping | grep -q "204 No Content"
-
-LABEL axway_image="influxdb-relay"
+CMD ["bash", "run.sh"]
