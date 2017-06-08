@@ -1,4 +1,4 @@
-FROM alpine:3.4
+FROM alpine:3.6
 
 #add python and envtpl (used for relay templating) to the alpine container
 RUN apk update && apk upgrade && \
